@@ -31,7 +31,7 @@ Artificial Intelligence (AI) based detection algorithms deployed at the edge ena
 - Highlighted the performance gain provided by Intel® Extension for PyTorch* v1.13.0 over the stock version of the PyTorch v1.13.0.<br>
 - The dataset is first preprocessed using OpenCV and NumPy, and then NumPy based postprocessing is performed using Non-Maxima Suppression (NMS) and centroid-based distance calculations for possible collision detection.
 - CNN-based YOLOV5 object detection model is a promising method to identify objects from the traffic camera. The time required for inference and the accuracy of the model are captured for multiple runs on the stock version as well on the Intel® oneAPI version. The average of these runs is considered and the comparison has been provided.
-- Model has been quantized using Intel® Neural Compressor and Intel® Distribution of OpenVINO™ which has shown high-performance vectorized operations on Intel® platforms.
+- Model has been quantized using Intel® Neural Compressor and Intel®  Extension for PyTorch* which has shown high-performance vectorized operations on Intel® platforms.
 
 ## Reference Implementation
 
@@ -59,8 +59,8 @@ Artificial Intelligence (AI) based detection algorithms deployed at the edge ena
 ###  For cloning the repository  please execute below 
 
 ```
-git clone https://github.com/oneapi-src/traffic-camera-object-detection
-cd traffic-camera-object-detection
+git clone https://github.com/Wei-Welles-Du/object-detection-hack
+cd object-detection-hack
 ```
 
 > **Note**: If you are beginning to explore the reference kits on client machines such as a windows laptop, go to the [Running on Windows](#running-on-windows) section to ensure you are all set and come back here
@@ -78,8 +78,7 @@ cd traffic-camera-object-detection
 | NumPy               | numpy=1.23.5
 | PyTorch              | pytorch=1.13.0
 | Intel® Extension for PyTorch         | NA                              
-| Intel® Neural Compressor         | NA      
-| Intel® Distribution of OpenVINO™ | NA                                                
+| Intel® Neural Compressor         | NA                                                   
 
 ### Environment
 
@@ -144,7 +143,6 @@ git apply --reject --whitespace=fix ../training.patch
 cp ../data/VOC.yaml ./data/
 cp ../deploy.yaml ./
 cp ../run* ./
-cp -r ../openvino ./
 ```
 > ** Note: Going forward all experiments will be done inside the "yolov5" cloned folder**
 
@@ -322,7 +320,6 @@ python run_inference.py -c ./deploy.yaml -d ./data/VOC.yaml -b 1 -w yolov5s.pt
 | PyTorch              | pytorch=1.13.0
 | Intel® Extension for PyTorch         | intel-extension-for-pytorch=1.13.0                              
 | Intel® Neural Compressor         | neural-compressor=2.0   
-| Intel® Distribution of OpenVINO™ | openvino-dev=2022.3.0
 
 ### **Optimized Solution setup**
 
@@ -336,7 +333,6 @@ Below are the steps to reproduce the benchmarking results given in this reposito
 2. Training
 3. Model Inference
 4. Quantize trained models using Intel® Neural Compressor and benchmarking
-5. Quantize trained models using Intel® Distribution of OpenVINO™ and benchmarking
 
 ### 1. Environment Creation
 
@@ -344,7 +340,7 @@ Below are the steps to reproduce the benchmarking results given in this reposito
 ```sh
 conda env create -f env/intel/intel-pt.yml
 ```
->**Note**: Users should run above command from cloned git repo **"traffic-camera-object-detection".**
+>**Note**: Users should run above command from cloned git repo **"object-detection-hack".**
 
 *Activate Intel® conda environment*
 
@@ -450,130 +446,6 @@ python run_inference.py -c ./deploy.yaml -d ./data/VOC.yaml -b 1 -w yolov5s.pt -
 ```
 >**Note**: <br>1. Above inference script can be run in Intel® environment using different batch sizes "-b":{1/8/16/32/64/128/256}<br>2. Users can enable flag "--save_image 1" and sepcify the output folder path "--save_image_path {path/to/folder}" to save the output images.</br>
 
-#### 5. **Using Intel® Distribution of OpenVINO™**
-When it comes to the deployment of this model on Edge devices, with less computing and memory resources, we further need to explore 
-options for quantizing and compressing the model which brings out the same level of accuracy and efficient utilization of underlying 
-computing resources. Intel® Distribution of OpenVINO™ Toolkit facilitates the optimization of a deep learning model from a framework 
-and deployment using an inference engine on such computing platforms based on Intel hardware accelerators. This section covers the steps 
-to use this toolkit for model quantization and measure its performance.
-
->Note: Users can use the intel environment for performing benchmarking with **Intel® Distribution of OpenVINO**
-
-> Activate Intel® Environment before running
-
-#### Model conversion to OpenVINO Intermediate Representation (IR) conversion
-Below script is used to convert FP32 model to ONNX model representation. By default, the converted onnx model file will be saved in
-openvino/openvino_models/openvino_onnx.
-
-```
-usage: convert_to_onnx.py [-h] [-o OUTPATH] [-w WEIGHTS] [-mname MODEL_NAME]
-
-optional arguments:
-  -h, --help            show this help message and exit
-  -o OUTPATH, --outpath OUTPATH
-                        absolute path to save converted model. By default it will be saved in "./openvino/openvino_models/openvino_onnx" folder
-  -w WEIGHTS, --weights WEIGHTS
-                        Model Weights in ".pt" format
-  -mname MODEL_NAME, --model_name MODEL_NAME
-                        Name of the model to be created in ".onnx" format, default "TrafficOD"
-```
-
-<b>Example</b>
-```sh
-python openvino/convert_to_onnx.py
-```
-The converted model will be saved to the openvino/openvino_models/openvino_onnx in .onnx format.
-
-Below command is used to convert the onnx model to OpenVINO IR model format.
-```sh
-mo --input_model <onnx model> --output_dir <output dir path to save the IR model>
-```
-Arguments
-```
---input_model     onnx model
---output_dir      path of the folder to save the OpenVINO IR model format
-```
-The above command will generate `<model-name>.bin` and `<model-name>.xml` as output which can be used for OpenVINO inference. Default precision is FP32.
-
-<b>Example</b>
-```sh
-mo --input_model ./openvino/openvino_models/openvino_onnx/TrafficOD_Onnx_Model.onnx --output_dir ./openvino/openvino_models/openvino_ir
-```
-
-#### Model Performance with OpenVINO Post-Training Optimization Tool
-Post-training Optimization Tool (POT) is designed to accelerate the inference of deep learning models by applying special methods without model 
-retraining or fine-tuning. One such method is post-training quantization.
-
-Below command is used to run the benchmark tool for the ONNX model generated. 
-
-```sh
-benchmark_app -m <path of onnx model>
-```
-
-Argument
-```
--m,--modelpath   path of model in onnx format
-```
-<b>Example</b>
-```sh
-benchmark_app -m ./openvino/openvino_models/openvino_onnx/TrafficOD_Onnx_Model.onnx -api async -niter 120 -nireq 1 -b 1 -nstreams 1 -nthreads 8 -hint none
-```
-
-Below command is used to run the benchmark tool for the OpenVINO IR model. 
-```sh
-benchmark_app -m <Path of the OpenVINO IR modell in xml format>
-```
-Argument
-```
--m,--modelpath   Path of model in OpenVINO IR model in xml format
-```
-<b>Example</b>
-```sh
-benchmark_app -m ./openvino/openvino_models/openvino_ir/TrafficOD_Onnx_Model.xml -api async -niter 120 -nireq 1 -b 1 -nstreams 1 -nthreads 8 -hint none
-```
-#### Model Conversion Using OpenVino Quantization
-Below script is used to convert OpenVINO IR model to OpenVINO INT8 model representation. By default, the converted OpenVINO INT8 model will be saved in
-openvino/openvino_models/openvino_quantized.
-
-```
-usage: openvino_quantization.py [-h] [-m FPIR_MODELPATH] [-o OUTPATH] [-d DATA_YAML] [-b BATCHSIZE]
-
-optional arguments:
-  -h, --help            show this help message and exit
-  -m FPIR_MODELPATH, --FPIR_modelpath FPIR_MODELPATH
-                        FP32 IR Model absolute path without extension
-  -o OUTPATH, --outpath OUTPATH
-                        default output quantized model will be save in path specified by outpath
-  -d DATA_YAML, --data_yaml DATA_YAML
-                        Absolute path to the yaml file containing paths data/ download data
-  -b BATCHSIZE, --batchsize BATCHSIZE
-                        batch size used for loading the data
-```
-
-<b>Example</b>
-```sh
-python openvino/openvino_quantization.py
-```
-After running the above command, we can verify that "<model-name>.bin", "<model-name>.xml", "<model-name>.mapping" files (quantized model) got generated on "openvino/openvino_models/openvino_quantized" path.
-
-Note> At the end Users can also observe the evaluation score of OpenVINO IR FP32 model as well as OpenVINO INT8 model.
-
-##### Model Performance Using Quantized (INT8) Model
-Use the below command to run the benchmark tool for the Quantized OpenVINO IR model.
-
-```sh
-benchmark_app -m <quantized POT model in xml format>
-```
-
-Argument
-```
--m,--quantizedmodelpath   Quantized POT model in xml format
-```
-<b>Example</b>
-```sh
-benchmark_app -m ./openvino/openvino_models/openvino_quantized/torch_jit.xml -api async -niter 120 -nireq 1 -b 1 -nstreams 1 -nthreads 8 -hint none
-```
-
 ## Performance Observations
  
 ### Observations
@@ -591,18 +463,6 @@ This section covers the inference time comparison between Stock PyTorch v1.13.0 
 -  Intel® Neural Compressor quantization offers batch prediction time speedup up to 1.82x against Stock PyTorch v1.13.0 FP32 model.
 -  Accuracy drop observed up to 0.01%.
 
-![image](assets/ThroughputOpenVinoQuantizationBenchmark.png)
-
-- Full precision ONNX Model (FP32)
-    - Throughput: **27.33 FPS**
-- Full precision IR Model (FP32)
-    - Throughput: **28.33 FPS**
-- Quantized IR Model (INT8 with DefaultQuantization)
-    - Throughput: **61.05 FPS**
-
-<br>**Takeaway**<br>Intel® Distribution of OpenVINO™ full precision IR (FP32) model offers FPS speed-up of around 1.04x and quantized IR (INT8) model with default quantization
-offers FPS speed-up of 2.23x compared to full precision ONNX model.
-
 ## Appendix
 
 ### **Running on Windows**
@@ -619,7 +479,7 @@ The reference kits commands are linux based, in order to run this on Windows, go
 | Platform                          | Microsoft Azure: Standard_D8_v5 (Ice Lake)<br>Ubuntu 20.04
 | :---                              | :---
 | Hardware                          | Azure Standard_D8_V5
-| Software                          | Intel® oneAPI AI Analytics Toolkit, Intel® Extension for PyTorch v1.13.0, Intel® Neural Compressor v2.0, Intel® Distribution of OpenVINO™ v2022.3.0
+| Software                          | Intel® oneAPI AI Analytics Toolkit, Intel® Extension for PyTorch v1.13.0, Intel® Neural Compressor v2.0
 | What you will learn               | Advantage of using Intel® Extension for PyTorch v1.13.0 over the stock PyTorch v1.13.0.
 
 
